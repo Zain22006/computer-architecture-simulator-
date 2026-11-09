@@ -84,10 +84,6 @@
         <span class="comp-icon" style="color:#C0202A">▶</span>
         <span>Input / Output Unit</span>
       </li>
-      <li class="comp-item" data-comp="pipeline" onclick="showComponent('pipeline')">
-        <span class="comp-icon" style="color:#D4AF37">▶</span>
-        <span>Pipeline Visualizer</span>
-      </li>
     </ul>
 
     <!-- File Upload -->
@@ -114,7 +110,7 @@
     </div>
   </aside>
 
-  <!-- CENTER PANEL: Canvas + Simulation -->
+  <!-- CENTER PANEL -->
   <main class="center-panel">
 
     <!-- Architecture Canvas Viewport -->
@@ -139,49 +135,93 @@
       </div>
     </section>
 
-    <!-- Input Panel -->
+    <!-- ══ ENHANCED INPUT PANEL ══ -->
     <section class="input-section">
-      <div class="section-header"><h2>Simulation Input</h2></div>
-      <div class="input-grid">
-        <div class="input-block">
-          <label>Quick Input Value (decimal)</label>
-          <input type="number" id="quickInput" placeholder="e.g. 42" class="sim-input" />
-          <button class="run-btn" onclick="processInput()">▶ Process</button>
-        </div>
-        <div class="input-block">
-          <label>Output</label>
-          <div class="output-display" id="outputDisplay">— awaiting input —</div>
-        </div>
-      </div>
-    </section>
+      <div class="section-header"><h2>⚡ Simulation Input</h2></div>
 
-    <!-- Code Editor -->
-    <section class="editor-section">
-      <div class="section-header">
-        <h2>🖊 Assembly Code Editor</h2>
-        <div>
-          <button class="run-btn" onclick="compileAndRun()">▶ Run</button>
-          <button class="stop-btn" onclick="stopSim()">■ Stop</button>
-          <button class="reset-btn" onclick="resetSim()">↺ Reset</button>
-          <button class="run-btn" onclick="loadExample()">📋 Example</button>
+      <!-- Input type tabs -->
+      <div class="input-tabs">
+        <button class="tab-btn active" onclick="switchTab('decimal', this)">Decimal</button>
+        <button class="tab-btn" onclick="switchTab('hex', this)">Hexadecimal</button>
+        <button class="tab-btn" onclick="switchTab('binary', this)">Binary</button>
+        <button class="tab-btn" onclick="switchTab('text', this)">Text / String</button>
+        <button class="tab-btn" onclick="switchTab('file', this)">📁 From File</button>
+      </div>
+
+      <!-- Decimal -->
+      <div class="tab-panel active" id="tab-decimal">
+        <div class="input-row">
+          <div class="input-block">
+            <label>Enter a Decimal Number <em>(e.g. 42, -7, 1024)</em></label>
+            <input type="number" id="inp-decimal" placeholder="e.g. 255" class="sim-input" />
+          </div>
         </div>
       </div>
-      <div class="editor-wrap">
-        <div class="line-nums" id="lineNums">1</div>
-        <textarea class="code-editor" id="codeEditor" spellcheck="false" placeholder="; Write your assembly code here&#10;; Example: LOAD R1, 10&#10;MOV R0, 0&#10;LOAD R1, 5&#10;ADD R0, R1&#10;STORE R0, 100&#10;HALT"
-          oninput="onEditorInput(this)" onkeydown="handleEditorKey(event, this)"></textarea>
-        <div class="editor-status" id="editorStatus">Ready</div>
-      </div>
-      <div class="syntax-errors" id="syntaxErrors"></div>
-    </section>
 
-    <!-- Memory Matrix (bottom) -->
-    <section class="memory-section">
-      <div class="section-header">
-        <h2>Memory &amp; Cache Matrix</h2>
-        <label><input type="checkbox" id="showCacheChk" onchange="toggleCacheView()" checked /> Show Cache Heatmap</label>
+      <!-- Hex -->
+      <div class="tab-panel" id="tab-hex">
+        <div class="input-row">
+          <div class="input-block">
+            <label>Enter a Hexadecimal Value <em>(e.g. 0xFF, 1A3C, DEAD)</em></label>
+            <input type="text" id="inp-hex" placeholder="e.g. 0xFF or FF" class="sim-input" />
+          </div>
+        </div>
       </div>
-      <div class="memory-wrap" id="memoryWrap"></div>
+
+      <!-- Binary -->
+      <div class="tab-panel" id="tab-binary">
+        <div class="input-row">
+          <div class="input-block">
+            <label>Enter a Binary Number <em>(e.g. 1010, 11001100)</em></label>
+            <input type="text" id="inp-binary" placeholder="e.g. 10110101" class="sim-input" pattern="[01]+" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Text -->
+      <div class="tab-panel" id="tab-text">
+        <div class="input-row">
+          <div class="input-block">
+            <label>Enter Text or a String <em>(converted to ASCII bytes)</em></label>
+            <input type="text" id="inp-text" placeholder="e.g. Hello World" class="sim-input" />
+          </div>
+        </div>
+      </div>
+
+      <!-- File picker -->
+      <div class="tab-panel" id="tab-file">
+        <div class="input-row">
+          <div class="input-block">
+            <label>Select a File from Your Device <em>(any file type — stored in simulated memory)</em></label>
+            <div class="file-pick-zone">
+              <input type="file" id="inp-file" style="display:none" onchange="handleInputFile(this.files[0])" />
+              <button class="file-pick-btn" onclick="document.getElementById('inp-file').click()">
+                📂 Browse Files…
+              </button>
+              <span class="file-pick-info" id="filePickInfo">No file selected</span>
+            </div>
+            <!-- Stored files quick-search -->
+            <div class="stored-search-wrap">
+              <label style="margin-top:10px;display:block">Or search from already-uploaded files:</label>
+              <input type="text" id="storedFileSearch" placeholder="Type filename to search…" class="sim-input" oninput="searchStoredFiles(this.value)" />
+              <ul class="stored-results" id="storedResults"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Process button + output — shared across all tabs -->
+      <div class="input-process-row">
+        <button class="run-btn big-run" onclick="processInput()">▶ Process Input</button>
+        <button class="reset-btn" onclick="resetSim()">↺ Reset</button>
+      </div>
+
+      <!-- Output area -->
+      <div class="output-wrap">
+        <div class="output-label">Output</div>
+        <div class="output-display" id="outputDisplay">— awaiting input —</div>
+        <div class="output-conversions" id="outputConversions"></div>
+      </div>
     </section>
 
   </main>
@@ -192,24 +232,11 @@
     <div class="detail-body" id="detailBody">
       <p class="detail-hint"><em>Click any component in the sidebar or on the canvas to view its detailed explanation here.</em></p>
     </div>
-    <!-- Register file live display -->
-    <div class="register-display" id="registerDisplay">
-      <div class="reg-header">Live Register Values</div>
-      <div class="reg-grid" id="regGrid"></div>
-    </div>
   </aside>
 
 </div>
 
-<!-- Pipeline Hazard Modal -->
-<div class="modal-overlay" id="pipelineModal" onclick="closePipelineModal()">
-  <div class="modal-box" onclick="event.stopPropagation()">
-    <div class="modal-header">Pipeline Hazard Visualizer <button onclick="closePipelineModal()" class="modal-close">✕</button></div>
-    <div id="pipelineContent"></div>
-  </div>
-</div>
-
-<!-- Component Detail Modal (for sidebar clicks) -->
+<!-- Component Detail Modal -->
 <div class="modal-overlay" id="compModal" onclick="closeCompModal()">
   <div class="modal-box large" onclick="event.stopPropagation()">
     <div class="modal-header" id="compModalTitle">Component Detail <button onclick="closeCompModal()" class="modal-close">✕</button></div>
@@ -220,8 +247,6 @@
 <script src="../js/simulator.js"></script>
 <script src="../js/canvas-renderer.js"></script>
 <script src="../js/component-data.js"></script>
-<script src="../js/editor.js"></script>
-<script src="../js/memory-grid.js"></script>
 <script src="../js/main.js"></script>
 </body>
 </html>
