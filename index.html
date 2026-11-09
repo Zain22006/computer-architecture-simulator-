@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
+  <meta name="description" content="Functional Units of a Computer – Interactive Simulation Platform" />
+  <title>Functional Units of a Computer</title>
+  <link rel="stylesheet" href="css/welcome.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <!-- Particle canvas background -->
+  <canvas id="particleCanvas"></canvas>
+
+  <!-- Animated background rings -->
+  <div class="bg-rings">
+    <div class="ring ring-1"></div>
+    <div class="ring ring-2"></div>
+    <div class="ring ring-3"></div>
+  </div>
+
+  <!-- Welcome container -->
+  <div class="welcome-container" id="welcomeContainer">
+    <!-- Decorative corner ornaments -->
+    <span class="corner corner-tl"></span>
+    <span class="corner corner-tr"></span>
+    <span class="corner corner-bl"></span>
+    <span class="corner corner-br"></span>
+
+    <!-- Gold line accent -->
+    <div class="gold-line-top"></div>
+
+    <div class="welcome-inner">
+      <!-- Badge -->
+      <div class="badge">
+        <span class="badge-dot"></span>
+        <span class="badge-text">SIMULATION PLATFORM v1.0</span>
+        <span class="badge-dot"></span>
+      </div>
+
+      <!-- Main welcome text -->
+      <h1 class="welcome-heading">
+        <span class="welcome-word">Welcome</span>
+        <span class="welcome-exclaim">!</span>
+      </h1>
+
+      <!-- Decorative divider -->
+      <div class="divider">
+        <span class="divider-line"></span>
+        <span class="divider-diamond">◆</span>
+        <span class="divider-line"></span>
+      </div>
+
+      <!-- Topic name -->
+      <h2 class="topic-name">
+        <em>Functional Units of a Computer</em>
+      </h2>
+
+      <p class="subtitle">
+        <em>An immersive, real-time simulation of computer architecture &amp; datapath operations</em>
+      </p>
+
+      <!-- Enter button -->
+      <button class="enter-btn" id="enterBtn" onclick="enterSite()" aria-label="Enter the simulation">
+        <span class="btn-inner">
+          <span class="btn-text">ENTER</span>
+          <span class="btn-arrow">→</span>
+        </span>
+        <span class="btn-glow"></span>
+      </button>
+
+      <!-- Scroll hint -->
+      <p class="hint-text">Click <strong>ENTER</strong> to begin the simulation experience</p>
+    </div>
+
+    <div class="gold-line-bottom"></div>
+  </div>
+
+  <!-- Loading overlay (shown during transition) -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loader-content">
+      <div class="loader-ring"></div>
+      <div class="loader-ring loader-ring-2"></div>
+      <div class="loader-ring loader-ring-3"></div>
+      <p class="loader-text">Initializing Simulation Engine…</p>
+      <div class="loader-bar-wrap">
+        <div class="loader-bar" id="loaderBar"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/particles.js"></script>
+  <script>
+    function enterSite() {
+      const overlay = document.getElementById('loadingOverlay');
+      const bar = document.getElementById('loaderBar');
+      overlay.classList.add('active');
+      let w = 0;
+      const iv = setInterval(() => {
+        w += Math.random() * 18 + 4;
+        if (w >= 100) { w = 100; clearInterval(iv); setTimeout(() => { window.location.href = 'pages/main.html'; }, 400); }
+        bar.style.width = w + '%';
+      }, 90);
+    }
+    // Keyboard Enter support
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') enterSite(); });
+  </script>
+</body>
+</html>

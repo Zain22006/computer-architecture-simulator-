@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
+  <title>Functional Units of a Computer – Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/main.css" />
+</head>
+<body>
+
+<!-- ══════════════ TOP NAV BAR ══════════════ -->
+<nav class="topnav" id="topNav">
+  <div class="nav-logo">
+    <span class="logo-diamond">◆</span>
+    <span class="logo-text">FUCA<span class="logo-accent">SIM</span></span>
+  </div>
+  <div class="nav-center">
+    <span class="nav-title">Functional Units of a Computer</span>
+  </div>
+  <div class="nav-right">
+    <select class="arch-select" id="archSelect" title="Architecture">
+      <option value="simple">Simple CPU</option>
+      <option value="pipeline">Pipelined CPU</option>
+      <option value="cache">Cache-Enabled CPU</option>
+    </select>
+    <div class="status-pill" id="statusPill">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">IDLE</span>
+    </div>
+    <button class="nav-btn" onclick="window.location.href='../index.html'" title="Back to Welcome">⟵ Home</button>
+  </div>
+</nav>
+
+<!-- ══════════════ MAIN LAYOUT ══════════════ -->
+<div class="main-layout">
+
+  <!-- LEFT SIDEBAR: Component Navigator -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-icon">⚙</span>
+      <span>Component Navigator</span>
+    </div>
+    <div class="sidebar-search">
+      <input type="text" placeholder="Search component…" id="compSearch" oninput="filterComponents(this.value)" />
+    </div>
+    <ul class="comp-list" id="compList">
+      <li class="comp-item active" data-comp="alu" onclick="showComponent('alu')">
+        <span class="comp-icon" style="color:#C0202A">▶</span>
+        <span>Arithmetic Logic Unit (ALU)</span>
+      </li>
+      <li class="comp-item" data-comp="cu" onclick="showComponent('cu')">
+        <span class="comp-icon" style="color:#D4AF37">▶</span>
+        <span>Control Unit (CU)</span>
+      </li>
+      <li class="comp-item" data-comp="registers" onclick="showComponent('registers')">
+        <span class="comp-icon" style="color:#097969">▶</span>
+        <span>Register File</span>
+      </li>
+      <li class="comp-item" data-comp="memory" onclick="showComponent('memory')">
+        <span class="comp-icon" style="color:#D4AF37">▶</span>
+        <span>Memory Unit (RAM)</span>
+      </li>
+      <li class="comp-item" data-comp="cache" onclick="showComponent('cache')">
+        <span class="comp-icon" style="color:#097969">▶</span>
+        <span>Cache Memory</span>
+      </li>
+      <li class="comp-item" data-comp="ir" onclick="showComponent('ir')">
+        <span class="comp-icon" style="color:#C0202A">▶</span>
+        <span>Instruction Register (IR)</span>
+      </li>
+      <li class="comp-item" data-comp="pc" onclick="showComponent('pc')">
+        <span class="comp-icon" style="color:#D4AF37">▶</span>
+        <span>Program Counter (PC)</span>
+      </li>
+      <li class="comp-item" data-comp="bus" onclick="showComponent('bus')">
+        <span class="comp-icon" style="color:#097969">▶</span>
+        <span>System Bus</span>
+      </li>
+      <li class="comp-item" data-comp="io" onclick="showComponent('io')">
+        <span class="comp-icon" style="color:#C0202A">▶</span>
+        <span>Input / Output Unit</span>
+      </li>
+      <li class="comp-item" data-comp="pipeline" onclick="showComponent('pipeline')">
+        <span class="comp-icon" style="color:#D4AF37">▶</span>
+        <span>Pipeline Visualizer</span>
+      </li>
+    </ul>
+
+    <!-- File Upload -->
+    <div class="sidebar-section">
+      <div class="section-label">📁 File Storage</div>
+      <div class="upload-zone" id="uploadZone" ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
+        <input type="file" id="fileInput" multiple style="display:none" onchange="handleFiles(this.files)" />
+        <span class="upload-icon">⬆</span>
+        <span>Drop files or <button onclick="document.getElementById('fileInput').click()">browse</button></span>
+      </div>
+      <ul class="file-list" id="fileList"></ul>
+    </div>
+
+    <!-- Read Aloud Controls -->
+    <div class="sidebar-section">
+      <div class="section-label">🔊 Read Aloud</div>
+      <div class="tts-controls">
+        <button class="tts-btn" id="ttsPlayBtn" onclick="toggleReadAloud()">▶ Play</button>
+        <button class="tts-btn" onclick="stopReadAloud()">■ Stop</button>
+        <label style="font-size:12px;color:var(--gold)">Speed
+          <input type="range" min="0.5" max="2" step="0.1" value="1" id="ttsRate" style="width:80px;vertical-align:middle" />
+        </label>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CENTER PANEL: Canvas + Simulation -->
+  <main class="center-panel">
+
+    <!-- Architecture Canvas Viewport -->
+    <section class="canvas-section" id="canvasSection">
+      <div class="section-header">
+        <h2>Architecture Matrix</h2>
+        <div class="canvas-controls">
+          <button class="ctrl-btn" id="showStepsBtn" onclick="toggleStepView()" title="Show step-by-step execution">🔍 Show Steps</button>
+          <button class="ctrl-btn" id="stepBackBtn" onclick="stepBack()" title="Step backward">⟵ Step</button>
+          <button class="ctrl-btn" id="stepFwdBtn" onclick="stepForward()" title="Step forward">Step ⟶</button>
+          <label class="speed-label">Clock
+            <input type="range" min="1" max="20" value="5" id="clockSlider" oninput="setClockSpeed(this.value)" title="Simulation speed" />
+            <span id="clockDisplay">5</span>Hz
+          </label>
+        </div>
+      </div>
+      <canvas id="simCanvas" width="900" height="480"></canvas>
+      <!-- Microop log overlay -->
+      <div class="microop-log" id="microopLog">
+        <div class="log-header">μ-Op Log <button onclick="clearLog()" style="float:right;font-size:11px;background:none;border:none;color:var(--gold);cursor:pointer">Clear</button></div>
+        <div class="log-body" id="logBody"></div>
+      </div>
+    </section>
+
+    <!-- Input Panel -->
+    <section class="input-section">
+      <div class="section-header"><h2>Simulation Input</h2></div>
+      <div class="input-grid">
+        <div class="input-block">
+          <label>Quick Input Value (decimal)</label>
+          <input type="number" id="quickInput" placeholder="e.g. 42" class="sim-input" />
+          <button class="run-btn" onclick="processInput()">▶ Process</button>
+        </div>
+        <div class="input-block">
+          <label>Output</label>
+          <div class="output-display" id="outputDisplay">— awaiting input —</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Code Editor -->
+    <section class="editor-section">
+      <div class="section-header">
+        <h2>🖊 Assembly Code Editor</h2>
+        <div>
+          <button class="run-btn" onclick="compileAndRun()">▶ Run</button>
+          <button class="stop-btn" onclick="stopSim()">■ Stop</button>
+          <button class="reset-btn" onclick="resetSim()">↺ Reset</button>
+          <button class="run-btn" onclick="loadExample()">📋 Example</button>
+        </div>
+      </div>
+      <div class="editor-wrap">
+        <div class="line-nums" id="lineNums">1</div>
+        <textarea class="code-editor" id="codeEditor" spellcheck="false" placeholder="; Write your assembly code here&#10;; Example: LOAD R1, 10&#10;MOV R0, 0&#10;LOAD R1, 5&#10;ADD R0, R1&#10;STORE R0, 100&#10;HALT"
+          oninput="onEditorInput(this)" onkeydown="handleEditorKey(event, this)"></textarea>
+        <div class="editor-status" id="editorStatus">Ready</div>
+      </div>
+      <div class="syntax-errors" id="syntaxErrors"></div>
+    </section>
+
+    <!-- Memory Matrix (bottom) -->
+    <section class="memory-section">
+      <div class="section-header">
+        <h2>Memory &amp; Cache Matrix</h2>
+        <label><input type="checkbox" id="showCacheChk" onchange="toggleCacheView()" checked /> Show Cache Heatmap</label>
+      </div>
+      <div class="memory-wrap" id="memoryWrap"></div>
+    </section>
+
+  </main>
+
+  <!-- RIGHT PANEL: Detail Info -->
+  <aside class="detail-panel" id="detailPanel">
+    <div class="detail-header" id="detailTitle">Select a Component</div>
+    <div class="detail-body" id="detailBody">
+      <p class="detail-hint"><em>Click any component in the sidebar or on the canvas to view its detailed explanation here.</em></p>
+    </div>
+    <!-- Register file live display -->
+    <div class="register-display" id="registerDisplay">
+      <div class="reg-header">Live Register Values</div>
+      <div class="reg-grid" id="regGrid"></div>
+    </div>
+  </aside>
+
+</div>
+
+<!-- Pipeline Hazard Modal -->
+<div class="modal-overlay" id="pipelineModal" onclick="closePipelineModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-header">Pipeline Hazard Visualizer <button onclick="closePipelineModal()" class="modal-close">✕</button></div>
+    <div id="pipelineContent"></div>
+  </div>
+</div>
+
+<!-- Component Detail Modal (for sidebar clicks) -->
+<div class="modal-overlay" id="compModal" onclick="closeCompModal()">
+  <div class="modal-box large" onclick="event.stopPropagation()">
+    <div class="modal-header" id="compModalTitle">Component Detail <button onclick="closeCompModal()" class="modal-close">✕</button></div>
+    <div class="modal-body" id="compModalBody"></div>
+  </div>
+</div>
+
+<script src="../js/simulator.js"></script>
+<script src="../js/canvas-renderer.js"></script>
+<script src="../js/component-data.js"></script>
+<script src="../js/editor.js"></script>
+<script src="../js/memory-grid.js"></script>
+<script src="../js/main.js"></script>
+</body>
+</html>
