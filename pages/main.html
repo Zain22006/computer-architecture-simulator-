@@ -118,7 +118,6 @@
       <div class="section-header">
         <h2>Architecture Matrix</h2>
         <div class="canvas-controls">
-          <button class="ctrl-btn" id="showStepsBtn" onclick="toggleStepView()" title="Show step-by-step execution">🔍 Show Steps</button>
           <button class="ctrl-btn" id="stepBackBtn" onclick="stepBack()" title="Step backward">⟵ Step</button>
           <button class="ctrl-btn" id="stepFwdBtn" onclick="stepForward()" title="Step forward">Step ⟶</button>
           <label class="speed-label">Clock
@@ -221,6 +220,8 @@
         <div class="output-label">Output</div>
         <div class="output-display" id="outputDisplay">— awaiting input —</div>
         <div class="output-conversions" id="outputConversions"></div>
+        <!-- Rich media preview area -->
+        <div class="media-preview" id="mediaPreview"></div>
       </div>
     </section>
 
@@ -244,6 +245,7 @@
   </div>
 </div>
 
+<script src="../js/storage.js"></script>
 <script src="../js/simulator.js"></script>
 <script src="../js/canvas-renderer.js"></script>
 <script src="../js/component-data.js"></script>

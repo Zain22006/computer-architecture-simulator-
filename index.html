@@ -12,6 +12,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet" />
 </head>
 <body>
+
+  <!-- Background Music (autoplay on page load, stops on ENTER) -->
+  <audio id="bgMusic" loop preload="auto">
+    <source src="assets/bgmusic.mp3" type="audio/mpeg" />
+  </audio>
+
   <!-- Particle canvas background -->
   <canvas id="particleCanvas"></canvas>
 
@@ -24,13 +30,10 @@
 
   <!-- Welcome container -->
   <div class="welcome-container" id="welcomeContainer">
-    <!-- Decorative corner ornaments -->
     <span class="corner corner-tl"></span>
     <span class="corner corner-tr"></span>
     <span class="corner corner-bl"></span>
     <span class="corner corner-br"></span>
-
-    <!-- Gold line accent -->
     <div class="gold-line-top"></div>
 
     <div class="welcome-inner">
@@ -59,9 +62,17 @@
         <em>Functional Units of a Computer</em>
       </h2>
 
+      <!-- Author credit -->
+      <p class="author-credit">— By Zainab Banu</p>
+
       <p class="subtitle">
         <em>An immersive, real-time simulation of computer architecture &amp; datapath operations</em>
       </p>
+
+      <!-- Music mute toggle -->
+      <button class="music-toggle" id="musicToggle" onclick="toggleMusic()" title="Toggle background music">
+        🎵 Music ON
+      </button>
 
       <!-- Enter button -->
       <button class="enter-btn" id="enterBtn" onclick="enterSite()" aria-label="Enter the simulation">
@@ -72,14 +83,13 @@
         <span class="btn-glow"></span>
       </button>
 
-      <!-- Scroll hint -->
       <p class="hint-text">Click <strong>ENTER</strong> to begin the simulation experience</p>
     </div>
 
     <div class="gold-line-bottom"></div>
   </div>
 
-  <!-- Loading overlay (shown during transition) -->
+  <!-- Loading overlay -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="loader-content">
       <div class="loader-ring"></div>
@@ -94,18 +104,46 @@
 
   <script src="js/particles.js"></script>
   <script>
+    const bgMusic = document.getElementById('bgMusic');
+    let musicOn = true;
+
+    // Autoplay music — browsers require a user interaction first.
+    // We attempt autoplay; if blocked, start on first click anywhere.
+    function tryPlay() {
+      bgMusic.volume = 0.45;
+      bgMusic.play().catch(() => {
+        // Autoplay blocked — wait for first interaction
+        document.addEventListener('click', () => { bgMusic.play(); }, { once: true });
+      });
+    }
+    tryPlay();
+
+    function toggleMusic() {
+      musicOn = !musicOn;
+      if (musicOn) { bgMusic.play(); document.getElementById('musicToggle').textContent = '🎵 Music ON'; }
+      else          { bgMusic.pause(); document.getElementById('musicToggle').textContent = '🔇 Music OFF'; }
+    }
+
     function enterSite() {
+      // Stop music when entering main page
+      bgMusic.pause();
+      bgMusic.currentTime = 0;
+
       const overlay = document.getElementById('loadingOverlay');
       const bar = document.getElementById('loaderBar');
       overlay.classList.add('active');
       let w = 0;
       const iv = setInterval(() => {
         w += Math.random() * 18 + 4;
-        if (w >= 100) { w = 100; clearInterval(iv); setTimeout(() => { window.location.href = 'pages/main.html'; }, 400); }
+        if (w >= 100) {
+          w = 100;
+          clearInterval(iv);
+          setTimeout(() => { window.location.href = 'pages/main.html'; }, 400);
+        }
         bar.style.width = w + '%';
       }, 90);
     }
-    // Keyboard Enter support
+
     document.addEventListener('keydown', e => { if (e.key === 'Enter') enterSite(); });
   </script>
 </body>

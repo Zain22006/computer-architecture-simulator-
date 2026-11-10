@@ -1,20 +1,22 @@
 /* ============================================================
-   MAIN.JS – Orchestrates all modules, event wiring, UI updates
-   requestAnimationFrame render loop separated from sim clock
+   MAIN.JS – Full orchestration with persistent file storage,
+   rich media preview, and universal input handling
    ============================================================ */
 
-let stepMode = false;
-let isSpeaking = false;
-let storedFiles = {};   // filename → { dataURL, size, type, content }
-let activeTab = 'decimal';
+let stepMode    = false;
+let isSpeaking  = false;
+let activeTab   = 'decimal';
 let ttsUtterance = null;
 
 // ── Init ────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   CanvasRenderer.init(document.getElementById('simCanvas'));
   startRenderLoop();
 
-  // Listen for OUT instruction events from simulator
+  // Load all previously stored files from IndexedDB
+  await loadStoredFilesFromDB();
+
+  // Listen for OUT instruction events
   document.addEventListener('simOutput', e => {
     const val = e.detail;
     showOutput(val, 'number');
@@ -24,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
   showComponent('alu');
 });
 
-// ── Render Loop (60fps, canvas only) ───────────────────────
+// ── Render Loop (60fps) ─────────────────────────────────────
 function startRenderLoop() {
   function loop() {
     const state = Simulator.getState();
@@ -36,13 +38,13 @@ function startRenderLoop() {
 
 // ── Status ──────────────────────────────────────────────────
 function updateStatus(text) {
-  const dot = document.getElementById('statusDot');
+  const dot   = document.getElementById('statusDot');
   const label = document.getElementById('statusText');
   if (!dot || !label) return;
   label.textContent = text;
-  const colors = { 'RUNNING':'#10D4A8', 'HALTED':'#C0202A', 'STOPPED':'#D4AF37', 'IDLE':'#888' };
+  const colors = { RUNNING:'#10D4A8', HALTED:'#C0202A', STOPPED:'#D4AF37', IDLE:'#888' };
   dot.style.background = colors[text] || '#888';
-  dot.style.boxShadow = `0 0 6px ${colors[text] || '#888'}`;
+  dot.style.boxShadow  = `0 0 6px ${colors[text] || '#888'}`;
 }
 
 function resetSim() {
@@ -50,6 +52,7 @@ function resetSim() {
   document.getElementById('outputDisplay').textContent = '— awaiting input —';
   const conv = document.getElementById('outputConversions');
   if (conv) conv.innerHTML = '';
+  clearMediaPreview();
   document.getElementById('logBody').innerHTML = '';
   updateStatus('IDLE');
 }
@@ -62,91 +65,66 @@ function setClockSpeed(val) {
 function stepForward() { Simulator.stepForward(); }
 function stepBack()    { Simulator.stepBack(); }
 
-function toggleStepView() {
-  stepMode = !stepMode;
-  const btn = document.getElementById('showStepsBtn');
-  if (btn) {
-    btn.textContent = stepMode ? '🔍 Hide Steps' : '🔍 Show Steps';
-    btn.style.borderColor = stepMode ? '#D4AF37' : '';
-    btn.style.color       = stepMode ? '#D4AF37' : '';
-  }
-  logMicro(stepMode ? 'Step mode ON' : 'Step mode OFF', 'ctrl');
-}
-
 // ── Tab Switching ────────────────────────────────────────────
 function switchTab(tabName, btn) {
   activeTab = tabName;
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  const panel = document.getElementById('tab-' + tabName);
-  if (panel) panel.classList.add('active');
+  document.getElementById('tab-' + tabName)?.classList.add('active');
   if (btn) btn.classList.add('active');
 }
 
 // ── Universal Input Processor ────────────────────────────────
 function processInput() {
-  let raw = '';
   let numericVal = null;
-  let displayVal = '';
-  let inputType = activeTab;
+  let displayStr = '';
 
   switch (activeTab) {
-
     case 'decimal': {
-      raw = document.getElementById('inp-decimal').value.trim();
-      if (raw === '') { showError('Please enter a decimal number.'); return; }
+      const raw = document.getElementById('inp-decimal').value.trim();
+      if (!raw) { showError('Please enter a decimal number.'); return; }
       numericVal = parseInt(raw, 10);
       if (isNaN(numericVal)) { showError('Invalid decimal number.'); return; }
-      displayVal = `Decimal input: ${numericVal}`;
+      displayStr = `Decimal: ${numericVal}`;
       break;
     }
-
     case 'hex': {
-      raw = document.getElementById('inp-hex').value.trim().replace(/^0x/i, '');
-      if (raw === '') { showError('Please enter a hexadecimal value.'); return; }
-      if (!/^[0-9A-Fa-f]+$/.test(raw)) { showError('Invalid hex — use digits 0-9 and letters A-F only.'); return; }
+      const raw = document.getElementById('inp-hex').value.trim().replace(/^0x/i, '');
+      if (!raw) { showError('Please enter a hexadecimal value.'); return; }
+      if (!/^[0-9A-Fa-f]+$/.test(raw)) { showError('Invalid hex — use 0-9 and A-F only.'); return; }
       numericVal = parseInt(raw, 16);
-      displayVal = `Hex input: 0x${raw.toUpperCase()}`;
+      displayStr = `Hex: 0x${raw.toUpperCase()}`;
       break;
     }
-
     case 'binary': {
-      raw = document.getElementById('inp-binary').value.trim();
-      if (raw === '') { showError('Please enter a binary number.'); return; }
+      const raw = document.getElementById('inp-binary').value.trim();
+      if (!raw) { showError('Please enter a binary number.'); return; }
       if (!/^[01]+$/.test(raw)) { showError('Invalid binary — use only 0 and 1.'); return; }
       numericVal = parseInt(raw, 2);
-      displayVal = `Binary input: ${raw}`;
+      displayStr = `Binary: ${raw}`;
       break;
     }
-
     case 'text': {
-      raw = document.getElementById('inp-text').value;
-      if (raw === '') { showError('Please enter some text.'); return; }
-      // Convert to ASCII codes
+      const raw = document.getElementById('inp-text').value;
+      if (!raw) { showError('Please enter some text.'); return; }
       const codes = Array.from(raw).map(c => c.charCodeAt(0));
-      numericVal = codes[0]; // push first char into input buffer
       codes.forEach(c => Simulator.pushInput(c));
-      displayVal = `Text input: "${raw}"`;
       showOutput(codes, 'text', raw);
-      logMicro(`Text "${raw}" → ASCII [${codes.join(', ')}] buffered`, 'data');
+      logMicro(`Text "${raw}" → ASCII [${codes.join(', ')}]`, 'data');
       return;
     }
-
     case 'file': {
       const info = document.getElementById('filePickInfo').textContent;
       if (info === 'No file selected') { showError('Please browse and select a file first.'); return; }
-      // Already handled by handleInputFile — just show confirmation
-      logMicro(`File "${info}" processed from memory store`, 'data');
+      logMicro(`File "${info}" loaded from persistent memory`, 'data');
       return;
     }
   }
 
-  // Push to simulator input buffer
   Simulator.pushInput(numericVal & 0xFFFF);
   showOutput(numericVal, 'number');
-  logMicro(`${displayVal} → buffered (dec=${numericVal}, hex=0x${(numericVal & 0xFFFF).toString(16).toUpperCase()})`, 'data');
+  logMicro(`${displayStr} → buffered (hex=0x${(numericVal & 0xFFFF).toString(16).toUpperCase()})`, 'data');
 
-  // Run a quick demo if no program is loaded
   const state = Simulator.getState();
   if (!state.program.length) {
     const { instructions } = Simulator.assemble(
@@ -169,7 +147,7 @@ function showOutput(val, type, rawText) {
       `<span class="conv-pill asc">'${rawText[i]}' = ${c}</span>`
     ).slice(0, 20).join('') + (val.length > 20 ? '…' : '');
   } else {
-    const n = Number(val) & 0xFFFF;
+    const n   = Number(val) & 0xFFFF;
     const hex = n.toString(16).toUpperCase().padStart(4, '0');
     const bin = n.toString(2).padStart(16, '0');
     display.textContent = `Dec: ${n}  |  Hex: 0x${hex}  |  Bin: ${bin}`;
@@ -193,84 +171,106 @@ function showError(msg) {
   logMicro('Input error: ' + msg, 'ctrl');
 }
 
-// ── File Input Handler ────────────────────────────────────────
+// ── Rich Media Preview ─────────────────────────────────────────
+function showMediaPreview(fileObj) {
+  const wrap = document.getElementById('mediaPreview');
+  if (!wrap) return;
+
+  const { name, type, dataURL } = fileObj;
+  const cat = getFileCategory(type, name);
+
+  let contentHtml = '';
+  switch (cat) {
+    case 'image':
+      contentHtml = `<img src="${dataURL}" alt="${name}" />`;
+      break;
+    case 'audio':
+      contentHtml = `<audio controls autoplay style="padding:12px;background:#0B0C0E;width:calc(100% - 24px)">
+        <source src="${dataURL}" type="${type}" />
+        Your browser does not support this audio format.
+      </audio>`;
+      break;
+    case 'video':
+      contentHtml = `<video controls autoplay style="max-height:400px">
+        <source src="${dataURL}" type="${type}" />
+        Your browser does not support this video format.
+      </video>`;
+      break;
+    case 'pdf':
+      contentHtml = `<iframe src="${dataURL}" title="${name}"></iframe>`;
+      break;
+    case 'text':
+      // dataURL is base64 — decode and show first 2KB
+      try {
+        const b64 = dataURL.split(',')[1];
+        const decoded = atob(b64).slice(0, 2048);
+        contentHtml = `<div class="text-preview">${escapeHtml(decoded)}${fileObj.size > 2048 ? '\n\n… (truncated)' : ''}</div>`;
+      } catch {
+        contentHtml = `<div class="text-preview">Cannot preview this file.</div>`;
+      }
+      break;
+    default:
+      contentHtml = `<div class="text-preview">📄 Binary file — no visual preview available.\nSize: ${formatSize(fileObj.size)}\nType: ${type || 'unknown'}</div>`;
+  }
+
+  wrap.innerHTML = `
+    <div class="media-header">
+      <span>📂 ${name}  <span style="color:var(--text-dim);font-size:10px">${type || 'unknown'} · ${formatSize(fileObj.size)}</span></span>
+      <button class="media-close" onclick="clearMediaPreview()" title="Close preview">✕</button>
+    </div>
+    ${contentHtml}
+  `;
+  wrap.classList.add('visible');
+}
+
+function clearMediaPreview() {
+  const wrap = document.getElementById('mediaPreview');
+  if (wrap) { wrap.innerHTML = ''; wrap.classList.remove('visible'); }
+}
+
+function getFileCategory(mime, name) {
+  if (!mime) mime = '';
+  const ext = (name || '').split('.').pop().toLowerCase();
+  if (mime.startsWith('image/') || ['jpg','jpeg','png','gif','bmp','webp','svg','ico'].includes(ext)) return 'image';
+  if (mime.startsWith('audio/') || ['mp3','wav','ogg','flac','aac','m4a','wma'].includes(ext))          return 'audio';
+  if (mime.startsWith('video/') || ['mp4','webm','mkv','avi','mov','wmv','flv'].includes(ext))          return 'video';
+  if (mime === 'application/pdf' || ext === 'pdf')                                                       return 'pdf';
+  if (mime.startsWith('text/') || ['txt','csv','json','xml','html','md','js','css','py'].includes(ext))  return 'text';
+  return 'binary';
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── File Input Handler (browse button) ────────────────────────
 function handleInputFile(file) {
   if (!file) return;
   const info = document.getElementById('filePickInfo');
   if (info) info.textContent = `${file.name}  (${formatSize(file.size)})`;
 
   const reader = new FileReader();
-  reader.onload = e => {
-    const data = e.target.result;
-    // Store in memory
-    storedFiles[file.name] = { dataURL: data, size: file.size, type: file.type };
-    // Add to sidebar list too
-    addFileToSidebar(file.name, file.size);
+  reader.onload = async e => {
+    const dataURL = e.target.result;
+    const fileObj = { name: file.name, type: file.type, size: file.size, dataURL };
 
-    // Convert first 256 bytes to numeric for simulation
-    if (file.type.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.csv')) {
-      // Text file — show ASCII
-      const text = data;
-      const codes = Array.from(text.slice(0, 64)).map(c => c.charCodeAt(0));
-      codes.forEach(c => Simulator.pushInput(c));
-      showOutput(codes, 'text', text.slice(0, 64));
-      logMicro(`File "${file.name}" → ${codes.length} ASCII bytes buffered`, 'data');
-    } else {
-      // Binary file — read as array buffer
-      const arr = new Uint8Array(data instanceof ArrayBuffer ? data : new TextEncoder().encode(data));
-      const preview = Array.from(arr.slice(0, 16));
-      preview.forEach(b => Simulator.pushInput(b));
-      const display = document.getElementById('outputDisplay');
-      const conv    = document.getElementById('outputConversions');
-      if (display) display.textContent = `File: "${file.name}" | Type: ${file.type || 'unknown'} | Size: ${formatSize(file.size)} | First bytes: [${preview.map(b => '0x' + b.toString(16).toUpperCase()).join(', ')}]`;
-      if (conv) conv.innerHTML = preview.map(b =>
-        `<span class="conv-pill hex">0x${b.toString(16).toUpperCase()}</span>`
-      ).join('');
-      logMicro(`File "${file.name}" → ${preview.length} bytes buffered`, 'data');
+    // Persist to IndexedDB
+    await FileStore.save(fileObj);
+    addFileToSidebar(file.name, file.size, file.type);
+
+    // Show in output
+    const display = document.getElementById('outputDisplay');
+    if (display) {
+      display.textContent = `✔ File "${file.name}" loaded & saved permanently.\nType: ${file.type || 'unknown'} | Size: ${formatSize(file.size)}`;
+      display.classList.add('flash');
+      setTimeout(() => display.classList.remove('flash'), 600);
     }
+
+    // Show media preview
+    showMediaPreview(fileObj);
+    logMicro(`File "${file.name}" stored permanently (IndexedDB)`, 'data');
   };
-
-  if (file.type.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.csv')) {
-    reader.readAsText(file);
-  } else {
-    reader.readAsArrayBuffer(file);
-  }
-}
-
-// ── Stored File Search ────────────────────────────────────────
-function searchStoredFiles(query) {
-  const results = document.getElementById('storedResults');
-  if (!results) return;
-  results.innerHTML = '';
-  if (!query.trim()) return;
-  const q = query.toLowerCase();
-  const matches = Object.keys(storedFiles).filter(name => name.toLowerCase().includes(q));
-  if (!matches.length) {
-    const li = document.createElement('li');
-    li.textContent = 'No matching files found';
-    li.style.color = 'var(--text-dim)';
-    li.style.cursor = 'default';
-    results.appendChild(li);
-    return;
-  }
-  matches.forEach(name => {
-    const li = document.createElement('li');
-    li.textContent = `📄 ${name}  (${formatSize(storedFiles[name].size)})`;
-    li.onclick = () => {
-      document.getElementById('filePickInfo').textContent = name;
-      results.innerHTML = '';
-      document.getElementById('storedFileSearch').value = '';
-      logMicro(`Selected stored file: "${name}"`, 'data');
-      // Simulate loading from memory
-      const display = document.getElementById('outputDisplay');
-      if (display) {
-        display.textContent = `✔ Loaded "${name}" from simulated memory — Size: ${formatSize(storedFiles[name].size)} — Type: ${storedFiles[name].type || 'unknown'}`;
-        display.classList.add('flash');
-        setTimeout(() => display.classList.remove('flash'), 600);
-      }
-    };
-    results.appendChild(li);
-  });
+  reader.readAsDataURL(file);
 }
 
 // ── Sidebar File Upload (drop zone) ──────────────────────────
@@ -279,39 +279,110 @@ function handleDragOver(e) { e.preventDefault(); e.currentTarget.style.borderCol
 function handleDrop(e) {
   e.preventDefault();
   e.currentTarget.style.borderColor = '';
-  handleFiles(e.dataTransfer.files);
+  handleSidebarFiles(e.dataTransfer.files);
 }
 
-function handleFiles(files) {
+function handleFiles(files) { handleSidebarFiles(files); }
+
+function handleSidebarFiles(files) {
   Array.from(files).forEach(file => {
-    if (storedFiles[file.name]) return;
     const reader = new FileReader();
-    reader.onload = e => {
-      storedFiles[file.name] = { dataURL: e.target.result, size: file.size, type: file.type };
-      addFileToSidebar(file.name, file.size);
+    reader.onload = async e => {
+      const fileObj = { name: file.name, type: file.type, size: file.size, dataURL: e.target.result };
+      await FileStore.save(fileObj);
+      addFileToSidebar(file.name, file.size, file.type);
       logMicro(`File stored: "${file.name}" (${formatSize(file.size)})`, 'data');
     };
     reader.readAsDataURL(file);
   });
 }
 
-function addFileToSidebar(name, size) {
+// ── Load Stored Files on Page Load ───────────────────────────
+async function loadStoredFilesFromDB() {
+  try {
+    const files = await FileStore.getAll();
+    files.forEach(f => addFileToSidebar(f.name, f.size, f.type));
+    if (files.length) logMicro(`Loaded ${files.length} file(s) from persistent memory`, 'addr');
+  } catch (err) {
+    logMicro('Could not load stored files: ' + err.message, 'ctrl');
+  }
+}
+
+function addFileToSidebar(name, size, type) {
   const list = document.getElementById('fileList');
   if (!list) return;
-  // Avoid duplicates in sidebar
-  if (list.querySelector(`[data-fname="${name}"]`)) return;
+  if (list.querySelector(`[data-fname="${CSS.escape(name)}"]`)) return; // no duplicate
   const li = document.createElement('li');
   li.dataset.fname = name;
-  li.innerHTML = `<span>📄 ${name} <small style="opacity:.5">${formatSize(size)}</small></span><span class="file-remove" onclick="removeFile('${name}',this.parentElement)">✕</span>`;
+  const cat = getFileCategory(type, name);
+  const icon = { image:'🖼', audio:'🎵', video:'🎬', pdf:'📕', text:'📄', binary:'📦' }[cat] || '📄';
+  li.innerHTML = `<span>${icon} ${name} <small style="opacity:.5">${formatSize(size)}</small></span>
+    <span class="file-remove" onclick="removeFile('${name.replace(/'/g,"\\'")}',this.parentElement)" title="Delete file">✕</span>`;
   list.appendChild(li);
 }
 
-function removeFile(name, li) { delete storedFiles[name]; if (li) li.remove(); }
+async function removeFile(name, li) {
+  await FileStore.remove(name);
+  if (li) li.remove();
+  logMicro(`File deleted: "${name}"`, 'ctrl');
+}
 
-function formatSize(bytes) {
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+// ── Stored File Search (with preview + delete) ────────────────
+async function searchStoredFiles(query) {
+  const results = document.getElementById('storedResults');
+  if (!results) return;
+  results.innerHTML = '';
+  if (!query.trim()) return;
+
+  const q     = query.toLowerCase();
+  let   files = [];
+  try { files = await FileStore.getAll(); } catch { return; }
+
+  const matches = files.filter(f => f.name.toLowerCase().includes(q));
+  if (!matches.length) {
+    const li = document.createElement('li');
+    li.textContent = 'No matching files found';
+    li.style.color  = 'var(--text-dim)';
+    li.style.cursor = 'default';
+    results.appendChild(li);
+    return;
+  }
+
+  matches.forEach(fileObj => {
+    const li  = document.createElement('li');
+    const cat = getFileCategory(fileObj.type, fileObj.name);
+    const icon = { image:'🖼', audio:'🎵', video:'🎬', pdf:'📕', text:'📄', binary:'📦' }[cat] || '📄';
+    li.innerHTML =
+      `<span>${icon} ${fileObj.name} <small style="opacity:.5">${formatSize(fileObj.size)}</small></span>
+       <button class="file-del-btn" title="Delete this file from memory">🗑 Delete</button>`;
+
+    // Click file name → preview it
+    li.querySelector('span').addEventListener('click', () => {
+      document.getElementById('filePickInfo').textContent = fileObj.name;
+      showMediaPreview(fileObj);
+      const display = document.getElementById('outputDisplay');
+      if (display) {
+        display.textContent = `✔ File "${fileObj.name}" retrieved from permanent memory.\nType: ${fileObj.type || 'unknown'} | Size: ${formatSize(fileObj.size)}`;
+        display.classList.add('flash');
+        setTimeout(() => display.classList.remove('flash'), 600);
+      }
+      logMicro(`File "${fileObj.name}" retrieved from persistent storage`, 'data');
+    });
+
+    // Click delete button → remove from DB and sidebar
+    li.querySelector('.file-del-btn').addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!confirm(`Delete "${fileObj.name}" permanently from memory?`)) return;
+      await FileStore.remove(fileObj.name);
+      li.remove();
+      // Also remove from sidebar list
+      const sidebarItem = document.querySelector(`#fileList [data-fname="${CSS.escape(fileObj.name)}"]`);
+      if (sidebarItem) sidebarItem.remove();
+      logMicro(`File "${fileObj.name}" permanently deleted`, 'ctrl');
+    });
+
+    results.appendChild(li);
+  });
 }
 
 // ── Read Aloud (TTS) ─────────────────────────────────────────
@@ -328,7 +399,7 @@ function startReading(text) {
   if (!window.speechSynthesis) { alert('Text-to-speech not supported in your browser.'); return; }
   stopReadAloud();
   ttsUtterance = new SpeechSynthesisUtterance(text);
-  ttsUtterance.rate = parseFloat(document.getElementById('ttsRate').value) || 1;
+  ttsUtterance.rate = parseFloat(document.getElementById('ttsRate')?.value) || 1;
   ttsUtterance.onend = () => {
     isSpeaking = false;
     const btn = document.getElementById('ttsPlayBtn');
@@ -354,7 +425,6 @@ function showComponent(id) {
   });
   const data = ComponentData[id];
   if (!data) return;
-
   const title = document.getElementById('detailTitle');
   const body  = document.getElementById('detailBody');
   if (title) title.textContent = data.title;
@@ -386,10 +456,18 @@ window.logMicro = function(msg, type = 'data') {
 };
 
 function clearLog() { const b = document.getElementById('logBody'); if (b) b.innerHTML = ''; }
-function closeCompModal() { document.getElementById('compModal').classList.remove('open'); }
+function closeCompModal() { document.getElementById('compModal')?.classList.remove('open'); }
+
+// ── Utilities ─────────────────────────────────────────────────
+function formatSize(bytes) {
+  if (!bytes) return '0B';
+  if (bytes < 1024)        return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+}
 
 // ── Arch select ───────────────────────────────────────────────
-document.getElementById('archSelect').addEventListener('change', function() {
+document.getElementById('archSelect')?.addEventListener('change', function() {
   logMicro(`Architecture → ${this.options[this.selectedIndex].text}`, 'ctrl');
   resetSim();
 });
