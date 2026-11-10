@@ -19,49 +19,49 @@ const CanvasRenderer = (() => {
     {
       id: 'cu', label: 'Control Unit', abbr: 'CU',
       x: 0.08, y: 0.12, w: 0.18, h: 0.22,
-      color: '#6F0D11', glow: '#C0202A', textColor: '#D4AF37',
+      color: '#3D1015', glow: '#E03040', textColor: '#F0C040',
       desc: 'Decodes instructions & generates control signals'
     },
     {
       id: 'alu', label: 'Arithmetic Logic Unit', abbr: 'ALU',
       x: 0.38, y: 0.12, w: 0.22, h: 0.28,
-      color: '#1A0A0A', glow: '#C0202A', textColor: '#E8DDB5',
+      color: '#2E1515', glow: '#E03040', textColor: '#F0E0B0',
       desc: 'Performs arithmetic & logical operations'
     },
     {
       id: 'registers', label: 'Register File', abbr: 'REG',
       x: 0.08, y: 0.44, w: 0.18, h: 0.30,
-      color: '#061A14', glow: '#097969', textColor: '#10D4A8',
+      color: '#0E2E20', glow: '#12C898', textColor: '#20F0C0',
       desc: 'High-speed temporary storage (R0–R7, PC, IR, ACC)'
     },
     {
       id: 'memory', label: 'Main Memory (RAM)', abbr: 'RAM',
       x: 0.72, y: 0.12, w: 0.22, h: 0.52,
-      color: '#0D0D18', glow: '#D4AF37', textColor: '#D4AF37',
+      color: '#1C1C30', glow: '#E0C040', textColor: '#E8C840',
       desc: '64KB RAM – stores instructions & data'
     },
     {
       id: 'cache', label: 'Cache Memory', abbr: 'L1$',
       x: 0.72, y: 0.70, w: 0.22, h: 0.22,
-      color: '#060E10', glow: '#097969', textColor: '#0DAA8A',
+      color: '#0E2228', glow: '#12C898', textColor: '#20D8B0',
       desc: 'L1 Cache – fast buffer between CPU & RAM'
     },
     {
       id: 'ir', label: 'Instruction Register', abbr: 'IR',
       x: 0.38, y: 0.52, w: 0.10, h: 0.14,
-      color: '#12080A', glow: '#C0202A', textColor: '#E8DDB5',
+      color: '#281216', glow: '#E03040', textColor: '#F0E0B0',
       desc: 'Holds the currently-executing instruction'
     },
     {
       id: 'pc', label: 'Program Counter', abbr: 'PC',
       x: 0.50, y: 0.52, w: 0.10, h: 0.14,
-      color: '#12100A', glow: '#D4AF37', textColor: '#D4AF37',
+      color: '#28200E', glow: '#E0C040', textColor: '#E8C840',
       desc: 'Tracks address of next instruction to execute'
     },
     {
       id: 'io', label: 'I/O Unit', abbr: 'I/O',
       x: 0.38, y: 0.72, w: 0.22, h: 0.18,
-      color: '#0A0A14', glow: '#5050C0', textColor: '#8080F0',
+      color: '#1A1A30', glow: '#7070E8', textColor: '#A8A8FF',
       desc: 'Manages data transfer between CPU & peripherals'
     }
   ];
@@ -230,7 +230,7 @@ const CanvasRenderer = (() => {
   }
 
   function drawGrid() {
-    ctx.strokeStyle = 'rgba(212,175,55,0.03)';
+    ctx.strokeStyle = 'rgba(212,175,55,0.08)';
     ctx.lineWidth = 1;
     const step = 40;
     for (let x = 0; x < W; x += step) {
@@ -294,7 +294,7 @@ const CanvasRenderer = (() => {
     // Draw blocks
     BLOCKS.forEach(b => {
       const isActive = b.id === activeBlock;
-      if (!isActive) ctx.globalAlpha = 0.65; // dim inactive
+      if (!isActive) ctx.globalAlpha = 0.85; // slightly dim inactive blocks
       drawBlock(b, isActive, simState);
       if (!isActive) ctx.globalAlpha = 1;
     });

@@ -127,9 +127,8 @@
         </div>
       </div>
       <canvas id="simCanvas" width="900" height="480"></canvas>
-      <!-- Microop log overlay -->
-      <div class="microop-log" id="microopLog">
-        <div class="log-header">μ-Op Log <button onclick="clearLog()" style="float:right;font-size:11px;background:none;border:none;color:var(--gold);cursor:pointer">Clear</button></div>
+      <!-- μ-Op log kept in DOM (hidden) for internal simulator logging only -->
+      <div style="display:none" id="microopLog">
         <div class="log-body" id="logBody"></div>
       </div>
     </section>

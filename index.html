@@ -69,11 +69,6 @@
         <em>An immersive, real-time simulation of computer architecture &amp; datapath operations</em>
       </p>
 
-      <!-- Music mute toggle -->
-      <button class="music-toggle" id="musicToggle" onclick="toggleMusic()" title="Toggle background music">
-        🎵 Music ON
-      </button>
-
       <!-- Enter button -->
       <button class="enter-btn" id="enterBtn" onclick="enterSite()" aria-label="Enter the simulation">
         <span class="btn-inner">
@@ -105,24 +100,16 @@
   <script src="js/particles.js"></script>
   <script>
     const bgMusic = document.getElementById('bgMusic');
-    let musicOn = true;
 
     // Autoplay music — browsers require a user interaction first.
     // We attempt autoplay; if blocked, start on first click anywhere.
     function tryPlay() {
       bgMusic.volume = 0.45;
       bgMusic.play().catch(() => {
-        // Autoplay blocked — wait for first interaction
         document.addEventListener('click', () => { bgMusic.play(); }, { once: true });
       });
     }
     tryPlay();
-
-    function toggleMusic() {
-      musicOn = !musicOn;
-      if (musicOn) { bgMusic.play(); document.getElementById('musicToggle').textContent = '🎵 Music ON'; }
-      else          { bgMusic.pause(); document.getElementById('musicToggle').textContent = '🔇 Music OFF'; }
-    }
 
     function enterSite() {
       // Stop music when entering main page
