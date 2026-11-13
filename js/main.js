@@ -120,19 +120,16 @@ function processInput() {
       return;
     }
   }
-
-  Simulator.pushInput(numericVal & 0xFFFF);
+  const val16 = numericVal & 0xFFFF;
+  Simulator.reset();
+  Simulator.pushInput(val16);
   showOutput(numericVal, 'number');
-  logMicro(`${displayStr} → buffered (hex=0x${(numericVal & 0xFFFF).toString(16).toUpperCase()})`, 'data');
-
-  const state = Simulator.getState();
-  if (!state.program.length) {
-    const { instructions } = Simulator.assemble(
-      `LOAD R0, ${numericVal & 0xFF}\nMUL R0, R0\nOUT R0\nHALT`
-    );
-    Simulator.load(instructions);
-    Simulator.run();
-  }
+  logMicro(`${displayStr} → buffered (hex=0x${val16.toString(16).toUpperCase().padStart(4, '0')})`, 'data');
+  const { instructions } = Simulator.assemble(
+    `LOAD R0, ${val16}\nOUT R0\nHALT`
+  );
+  Simulator.load(instructions);
+  Simulator.run();
 }
 
 // ── Output Display ────────────────────────────────────────────
